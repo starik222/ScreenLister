@@ -215,7 +215,7 @@ namespace ScreenLister
             public int Width;
             public int Height;
         }
-        private const string _sPathDLL = "lib\\x64\\ScreenLister.dll";
+        private const string _sPathDLL = "win-x64\\ScreenLister.dll";
 
         [DllImport(_sPathDLL, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
         static public extern Ext.ScreenList GetImages([MarshalAs(UnmanagedType.LPStr)] string filename, int LineCount, int AllCount, int ResizePercent);
