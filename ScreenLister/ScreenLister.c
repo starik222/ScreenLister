@@ -62,7 +62,7 @@ FilePtr openAVData(const char* name, char* buffer, size_t buffer_len)
 			MemData_read, MemData_write,
 			MemData_seek);
 		int res = avformat_open_input(&file->FmtCtx, name, NULL, NULL);
-		if (file->FmtCtx->pb && res == 0)
+		if (res == 0 && file->FmtCtx->pb)
 		{
 			if (avformat_find_stream_info(file->FmtCtx, NULL) >= 0)
 				return file;
