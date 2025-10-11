@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdbool.h>
 #include "ScreenLister.h"
 #include <libavformat\avformat.h>
 #include <libavutil\dict.h>
@@ -38,30 +39,43 @@ struct MyStream {
 
 static int done_init = 0;
 
-FilePtr openAVData(const char* name, char* buffer, size_t buffer_len)
+FilePtr openAVData(const char* fname, char* buffer, size_t buffer_len)
 {
 	FilePtr file;
 
-	//if (!done_init) {
-	//	av_register_all();
-	//	av_log_set_level(AV_LOG_ERROR);
-	//	done_init = 1;
-	//}
-
-	if (!name)
-		name = "";
+	if (buffer_len>0 && !fname)
+		fname = "";
 
 	file = (FilePtr)calloc(1, sizeof(*file));
-	if (file && (file->FmtCtx = avformat_alloc_context()) != NULL)
-	{
-		file->membuf.buffer = buffer;
-		file->membuf.length = buffer_len;
-		file->membuf.pos = 0;
+	AVDictionary* codec_opts = NULL;
+	av_dict_set(&codec_opts, "timeout", "5", 0);
 
-		file->FmtCtx->pb = avio_alloc_context(NULL, 0, 0, &file->membuf,
-			MemData_read, MemData_write,
-			MemData_seek);
-		int res = avformat_open_input(&file->FmtCtx, name, NULL, NULL);
+	if (buffer_len > 0) //using for operations from buffer
+	{
+		if (file && (file->FmtCtx = avformat_alloc_context()) != NULL)
+		{
+			file->membuf.buffer = buffer;
+			file->membuf.length = buffer_len;
+			file->membuf.pos = 0;
+
+			file->FmtCtx->pb = avio_alloc_context(NULL, 0, 0, &file->membuf,
+				MemData_read, MemData_write,
+				MemData_seek);
+			int res = avformat_open_input(&file->FmtCtx, fname, NULL, &codec_opts);
+			if (res == 0 && file->FmtCtx->pb)
+			{
+				if (avformat_find_stream_info(file->FmtCtx, NULL) >= 0)
+					return file;
+				avformat_close_input(&file->FmtCtx);
+			}
+			if (file->FmtCtx)
+				avformat_free_context(file->FmtCtx);
+			file->FmtCtx = NULL;
+		}
+	}
+	else //using for operations from file
+	{
+		int res = avformat_open_input(&file->FmtCtx, fname, NULL, NULL);
 		if (res == 0 && file->FmtCtx->pb)
 		{
 			if (avformat_find_stream_info(file->FmtCtx, NULL) >= 0)
@@ -72,6 +86,7 @@ FilePtr openAVData(const char* name, char* buffer, size_t buffer_len)
 			avformat_free_context(file->FmtCtx);
 		file->FmtCtx = NULL;
 	}
+
 
 	free(file);
 	return NULL;
@@ -204,6 +219,16 @@ long MemData_seek(char* opaque, long offset, int whence)
 
 ImageBuf GetImageFromVideoBuffer(char* buffer, int bufSize)
 {
+	return GetImage(buffer, bufSize, NULL);
+}
+
+ImageBuf GetImageFromVideoFile(const char* filename)
+{
+	return GetImage(NULL, 0, filename);
+}
+
+ImageBuf GetImage(char* buffer, int bufSize, const char* filename)
+{
 	enum AVPixelFormat IMAGE_FORMAT = AV_PIX_FMT_BGRA;
 	//AVFormatContext* fmt_ctx = NULL;
 	AVCodecContext* decoder_ctx = NULL;
@@ -237,7 +262,15 @@ ImageBuf GetImageFromVideoBuffer(char* buffer, int bufSize)
 	result.BufSize = 0;
 	result.ImageTime = 0;
 	int video_stream, ret;
-	FilePtr ptr = openAVData(NULL, buffer, bufSize);
+	FilePtr ptr;
+	if (bufSize > 0) 
+	{
+		ptr = openAVData(NULL, buffer, bufSize);
+	}
+	else
+	{
+		ptr = openAVData(filename, NULL, 0);
+	}
 	if (!ptr)
 		return result;
 

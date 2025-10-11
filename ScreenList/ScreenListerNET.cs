@@ -109,6 +109,30 @@ namespace ScreenLister
             return null;
         }
 
+        public static Image GetImageFromVideoFile(string fileName)
+        {
+            Ext.ImageBuf res = Ext.GetImageFromVideoFile(fileName);
+            if (res.BufSize > 0)
+            {
+                //BMPFile bMPFile = new BMPFile(m_pCodecCtx.width, m_pCodecCtx.height, 32);
+                BMPFile bMPFile = new BMPFile(res.Width, res.Height, 32);
+                //byte[] imgBuffer = new byte[m_pCodecCtx.width * m_pCodecCtx.height * 32 / 8];
+                byte[] imgBuffer = new byte[res.BufSize];
+                Marshal.Copy(res.ImgBuf, imgBuffer, 0, imgBuffer.Length);
+                using (MemoryStream ms = new MemoryStream(bMPFile.CreateFromBuffer(imgBuffer)))
+                {
+                    using (Image img = Image.FromStream(ms))
+                    {
+                        img.RotateFlip(RotateFlipType.RotateNoneFlipY);
+                        ms.Close();
+                        Ext.FreeImageBuffer(res);
+                        return (Image)img.Clone();
+                    }
+                }
+            }
+            return null;
+        }
+
 
         public static Image GetScreenList(string videoPath, int inLineCount, int allCount, int PreviewImageResizePercent)
         {

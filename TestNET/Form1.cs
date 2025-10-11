@@ -1,14 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Forms;
 using ScreenLister;
-using System.IO;
+using System.Windows.Forms;
 
 namespace TestNET
 {
@@ -21,6 +12,7 @@ namespace TestNET
 
         private void button1_Click(object sender, EventArgs e)
         {
+            OpenFileDialog openFileDialog1 = new OpenFileDialog();
             if (openFileDialog1.ShowDialog() != DialogResult.OK)
                 return;
             Image img = ScreenListerNET.GetScreenList(openFileDialog1.FileName, 5, 30, 50);
@@ -33,6 +25,24 @@ namespace TestNET
             byte[] extra = File.ReadAllBytes("H:\\ScreenLister\\x64\\Debug\\extraData.dat");
 
             Image img = ScreenListerNET.DecodeH264Frame(data, extra);
+            pictureBox1.Image = img;
+        }
+
+        private void button3_Click(object sender, EventArgs e)
+        {
+            OpenFileDialog openFileDialog1 = new OpenFileDialog();
+            if (openFileDialog1.ShowDialog() != DialogResult.OK)
+                return;
+            Image img = ScreenListerNET.GetImageFromVideoBuffer(File.ReadAllBytes(openFileDialog1.FileName));
+            pictureBox1.Image = img;
+        }
+
+        private void button4_Click(object sender, EventArgs e)
+        {
+            OpenFileDialog openFileDialog1 = new OpenFileDialog();
+            if (openFileDialog1.ShowDialog() != DialogResult.OK)
+                return;
+            Image img = ScreenListerNET.GetImageFromVideoFile(openFileDialog1.FileName);
             pictureBox1.Image = img;
         }
     }

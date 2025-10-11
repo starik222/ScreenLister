@@ -49,10 +49,12 @@ EXPORT ImageBuf DecodeFrame(int codecId, char* buffer, int bufSize, char* extraD
 EXPORT ImageBuf DecodeH264Frame(char* buffer, int bufSize, char* extraData, int extraDataSize);
 
 EXPORT ImageBuf GetImageFromVideoBuffer(char* buffer, int bufSize);
+EXPORT ImageBuf GetImageFromVideoFile(const char* filename);
 
 EXPORT void FreeImageBuffer(ImageBuf buf);
 
-FilePtr openAVData(const char* name, char* buffer, size_t buffer_len);
+FilePtr openAVData(const char* fname, char* buffer, size_t buffer_len);
+ImageBuf GetImage(char* buffer, int bufSize, const char* filename);
 
 int MemData_read(char* opaque, char* buf, int buf_size);
 int MemData_write(char* opaque, char* buf, int buf_size);

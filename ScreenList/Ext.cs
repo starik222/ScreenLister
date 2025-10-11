@@ -236,6 +236,8 @@ namespace ScreenLister
         static public extern Ext.ImageBuf DecodeFrame(int codecId, IntPtr buffer, int bufSize, IntPtr extraData, int extraDataSize);
 
         [DllImport(_sPathDLL, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-        static public extern Ext.ImageBuf GetImageFromVideoBuffer(IntPtr buffer, int bufSize);
+        static public extern Ext.ImageBuf GetImageFromVideoBuffer(IntPtr buffer, int bufSize);        
+        [DllImport(_sPathDLL, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+        static public extern Ext.ImageBuf GetImageFromVideoFile([MarshalAs(UnmanagedType.LPStr)] string filename);
     }
 }
