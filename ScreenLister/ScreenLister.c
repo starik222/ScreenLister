@@ -230,7 +230,6 @@ ImageBuf GetImageFromVideoFile(const char* filename)
 ImageBuf GetImage(char* buffer, int bufSize, const char* filename)
 {
 	enum AVPixelFormat IMAGE_FORMAT = AV_PIX_FMT_BGRA;
-	//AVFormatContext* fmt_ctx = NULL;
 	AVCodecContext* decoder_ctx = NULL;
 	struct SwsContext* sws_ctx = NULL;
 	struct SwsContext* old_sws_ctx = NULL;
@@ -250,9 +249,7 @@ ImageBuf GetImage(char* buffer, int bufSize, const char* filename)
 	double step = 0;
 	double curPos = 0;
 
-	//AVPacket packet = { .data = NULL,.size = 0 };
 	AVFrame* srcFrame = NULL;
-	//AVFrame *dstFrame = NULL;
 	uint8_t* dst_data[4];
 	int dst_linesize[4];
 	int framefinished = 0;
@@ -278,28 +275,23 @@ ImageBuf GetImage(char* buffer, int bufSize, const char* filename)
 	if (ret < 0)
 	{
 		av_log(NULL, AV_LOG_ERROR, "Cannot find a video stream in the input file\n");
-		//return retList;
 		goto exit;
 	}
 	video_stream = ret;
 	if (!(decoder_ctx = avcodec_alloc_context3(decoder)))
 	{
 		av_log(NULL, AV_LOG_ERROR, "Cannot allocate context\n");
-		//return retList;
 		goto exit;
 	}
 	video = ptr->FmtCtx->streams[video_stream];
 	if (avcodec_parameters_to_context(decoder_ctx, video->codecpar) < 0)
-		//return retList;
 		goto exit;
 	if ((ret = avcodec_open2(decoder_ctx, decoder, NULL)) < 0)
 	{
 		av_log(NULL, AV_LOG_ERROR, "Failed to open codec for stream\n");
-		//return retList;
 		goto exit;
 	}
 	if (decoder_ctx->width == 0 || decoder_ctx->height == 0)
-		//return retList;
 		goto exit;
 
 	if (video->duration != AV_NOPTS_VALUE)
@@ -325,12 +317,10 @@ ImageBuf GetImage(char* buffer, int bufSize, const char* filename)
 	sws_ctx = sws_getContext(videoWidth, videoHeight, decoder_ctx->pix_fmt, videoWidthNew, videoHeightNew, IMAGE_FORMAT, SWS_BILINEAR, NULL, NULL, NULL);
 	if (!sws_ctx)
 	{
-		//return retList;
 		goto exit;
 	}
 
 	srcFrame = av_frame_alloc();
-	//dstFrame = av_frame_alloc();
 	int imgBufSize = av_image_alloc(dst_data, dst_linesize, videoWidthNew, videoHeightNew, IMAGE_FORMAT, 1);
 
 
@@ -341,23 +331,9 @@ ImageBuf GetImage(char* buffer, int bufSize, const char* filename)
 			ret = avcodec_send_packet(decoder_ctx, &packet);
 			if (ret)
 				goto badFrame;
-
-			//ret = avcodec_receive_frame(decoder_ctx, srcFrame);
-			//if (ret)
-			//	goto badFrame;
 			ret = avcodec_receive_frame(decoder_ctx, srcFrame);
 			if (ret)
 				goto badFrame;
-
-			//while (ret = avcodec_receive_frame(decoder_ctx, srcFrame) >= 0)
-			//{
-			//	if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
-			//		goto badFrame;
-			//	else if (ret < 0)
-			//	{
-			//		goto badFrame;
-			//	}
-			//}
 			framefinished = 1;
 			if (framefinished)
 			{
@@ -376,7 +352,6 @@ ImageBuf GetImage(char* buffer, int bufSize, const char* filename)
 					result.BufSize = 0;
 					break;
 				}
-				//int bs = videoWidthNew * videoHeightNew * 32 / 8;
 				result.ImgBuf = malloc(imgBufSize);
 				result.BufSize = imgBufSize;
 				memcpy(result.ImgBuf, dst_data[0], imgBufSize);

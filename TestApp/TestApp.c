@@ -61,9 +61,9 @@ int main(int argc, char **argv)
 	//fclose(pFileData2);
 
 	//ImageBuf b = DecodeH264Frame(buffer, lSize, bufferExtra, lSize2);
-	//ImageBuf img1 = GetImageFromVideoFile(argv[1]);
-	//getch();
-	//return 0;
+	ImageBuf img1 = GetImageFromVideoFile(argv[1]);
+	getch();
+	return 0;
 	FILE* f;
 	errno_t err;
 	err = fopen_s(&f, argv[1], "r");
