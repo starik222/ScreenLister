@@ -1,17 +1,24 @@
+#include <errno.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
 #define EXPORT __declspec(dllexport)
+#define IO_BUFFER_SIZE (32 * 1024)
 
-
-
-
-
-typedef struct ImageBuf
-{
-	float ImageTime;
+typedef struct ImageBuf {
+	float        ImageTime;
 	unsigned long BufSize;
-	void *ImgBuf;
-	int Width;
-	int Height;
+	void* ImgBuf;
+	int          Width;
+	int          Height;
 } ImageBuf;
+
+typedef struct MemData {
+	const uint8_t* buffer;
+	size_t         length;
+	size_t         pos;
+} MemData;
 
 typedef struct ScreenList
 {
@@ -29,14 +36,8 @@ typedef struct VideoInfo
 	int Height;
 } VideoInfo;
 
-typedef struct MemData {
-	char* buffer;
-	size_t length;
-	size_t pos;
-} MemData;
 
-typedef struct MyFile* FilePtr;
-typedef struct MyStream* StreamPtr;
+
 
 EXPORT void message(void);
 EXPORT ScreenList GetImages(const char * filename, int LineCount, int AllCount, int ResizePercent);
@@ -53,9 +54,3 @@ EXPORT ImageBuf GetImageFromVideoFile(const char* filename);
 
 EXPORT void FreeImageBuffer(ImageBuf buf);
 
-FilePtr openAVData(const char* fname, char* buffer, size_t buffer_len);
-ImageBuf GetImage(char* buffer, int bufSize, const char* filename);
-
-int MemData_read(char* opaque, char* buf, int buf_size);
-int MemData_write(char* opaque, char* buf, int buf_size);
-long MemData_seek(char* opaque, long offset, int whence);

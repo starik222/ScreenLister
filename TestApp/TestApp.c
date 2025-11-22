@@ -1,7 +1,7 @@
 #include <stdio.h>
-#include "ScreenLister.h"
+#include <string.h>
 #include <Windows.h>
-
+#include "ScreenLister.h"
 
 
 
@@ -61,30 +61,75 @@ int main(int argc, char **argv)
 	//fclose(pFileData2);
 
 	//ImageBuf b = DecodeH264Frame(buffer, lSize, bufferExtra, lSize2);
-	ImageBuf img1 = GetImageFromVideoFile(argv[1]);
-	getch();
-	return 0;
-	FILE* f;
-	errno_t err;
-	err = fopen_s(&f, argv[1], "r");
-	ImageBuf img;
-	if (!err)
-	{
-		fseek(f, 0, SEEK_END);
-		int size = ftell(f);
-		fseek(f, 0, SEEK_SET);
-		char* buf = malloc(size);
-		fread_s(buf, size, size, 1, f);
-		fclose(f);
-		img = GetImageFromVideoBuffer(buf, size);
-		printf_s("get image size: %d", img.BufSize);
+	//ImageBuf img1 = GetImageFromVideoFile(argv[1]);
+	//getch();
+	//return 0;
+	//FILE* f;
+	//errno_t err;
+	//err = fopen_s(&f, argv[1], "r");
+	//ImageBuf img;
+	//if (!err)
+	//{
+	//	fseek(f, 0, SEEK_END);
+	//	int size = ftell(f);
+	//	fseek(f, 0, SEEK_SET);
+	//	char* buf = malloc(size);
+	//	fread_s(buf, size, size, 1, f);
+	//	fclose(f);
+	//	img = GetImageFromVideoBuffer(buf, size);
+	//	printf_s("get image size: %d", img.BufSize);
+	//}
+
+	if (argc != 2) {
+		printf("Usage: %s <directory>\n", argv[0]);
+		return 1;
 	}
-	
-	
-	
-	//ScreenList list = GetImages(argv[1], 30, 300, 30);
-	//
-	//FreeImageList(list);
-	getch();
+
+	char searchPath[MAX_PATH];
+	snprintf(searchPath, MAX_PATH, "%s\\*.avi", argv[1]);
+
+	WIN32_FIND_DATA findFileData;
+	HANDLE hFind = FindFirstFile(searchPath, &findFileData);
+
+	if (hFind == INVALID_HANDLE_VALUE) {
+		printf("No AVI files found or directory doesn't exist\n");
+		return 1;
+	}
+
+	do {
+		if (!(findFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
+			char inputPath[MAX_PATH];
+			snprintf(inputPath, MAX_PATH, "%s\\%s", argv[1], findFileData.cFileName);
+
+			char outputPath[MAX_PATH];
+			strcpy(outputPath, inputPath);
+			char* dot = strrchr(outputPath, '.');
+			if (dot) *dot = '\0';
+			strcat(outputPath, ".bmp");
+
+			printf("Processing: %s\n", inputPath);
+
+			ImageBuf image = GetImageFromVideoFile(inputPath);
+			if (image.ImgBuf == NULL || image.BufSize == 0) {
+				printf("Error processing file: %s\n", inputPath);
+				continue;
+			}
+
+			//FILE* bmpFile = fopen(outputPath, "wb");
+			//if (!bmpFile) {
+			//	printf("Error creating output file: %s\n", outputPath);
+			//	continue;
+			//}
+
+			//fwrite(image.ImgBuf, 1, image.BufSize, bmpFile);
+			//fclose(bmpFile);
+
+			printf("Created: %s\n", outputPath);
+			FreeImageBuffer(image);
+		}
+	} while (FindNextFile(hFind, &findFileData) != 0);
+
+	FindClose(hFind);
+	return 0;
 }
 

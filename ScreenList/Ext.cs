@@ -218,26 +218,26 @@ namespace ScreenLister
         private const string _sPathDLL = "win-x64\\ScreenLister.dll";
 
         [DllImport(_sPathDLL, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-        static public extern Ext.ScreenList GetImages([MarshalAs(UnmanagedType.LPStr)] string filename, int LineCount, int AllCount, int ResizePercent);
+        static internal extern Ext.ScreenList GetImages([MarshalAs(UnmanagedType.LPStr)] string filename, int LineCount, int AllCount, int ResizePercent);
 
         [DllImport(_sPathDLL, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-        static public extern Ext.VideoInfo GetVideoInfo([MarshalAs(UnmanagedType.LPStr)] string filename);
+        static internal extern Ext.VideoInfo GetVideoInfo([MarshalAs(UnmanagedType.LPStr)] string filename);
 
         [DllImport(_sPathDLL, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-        static public extern void FreeImageList(Ext.ScreenList list);
+        static internal extern void FreeImageList(Ext.ScreenList list);
 
         [DllImport(_sPathDLL, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-        static public extern void FreeImageBuffer(Ext.ImageBuf buf);
+        static internal extern void FreeImageBuffer(Ext.ImageBuf buf);
 
         [DllImport(_sPathDLL, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-        static public extern Ext.ImageBuf DecodeH264Frame(IntPtr buffer, int bufSize, IntPtr extraData, int extraDataSize);
+        static internal extern Ext.ImageBuf DecodeH264Frame(IntPtr buffer, int bufSize, IntPtr extraData, int extraDataSize);
 
         [DllImport(_sPathDLL, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-        static public extern Ext.ImageBuf DecodeFrame(int codecId, IntPtr buffer, int bufSize, IntPtr extraData, int extraDataSize);
+        static internal extern Ext.ImageBuf DecodeFrame(int codecId, IntPtr buffer, int bufSize, IntPtr extraData, int extraDataSize);
 
         [DllImport(_sPathDLL, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-        static public extern Ext.ImageBuf GetImageFromVideoBuffer(IntPtr buffer, int bufSize);        
+        static internal extern Ext.ImageBuf GetImageFromVideoBuffer(IntPtr buffer, int bufSize);        
         [DllImport(_sPathDLL, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-        static public extern Ext.ImageBuf GetImageFromVideoFile([MarshalAs(UnmanagedType.LPStr)] string filename);
+        static internal extern Ext.ImageBuf GetImageFromVideoFile([MarshalAs(UnmanagedType.LPStr)] string filename);
     }
 }
