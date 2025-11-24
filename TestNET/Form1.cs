@@ -30,11 +30,6 @@ namespace TestNET
 
         private void button3_Click(object sender, EventArgs e)
         {
-            OpenFileDialog openFileDialog1 = new OpenFileDialog();
-            if (openFileDialog1.ShowDialog() != DialogResult.OK)
-                return;
-            Image img = ScreenListerNET.GetImageFromVideoBuffer(File.ReadAllBytes(openFileDialog1.FileName));
-            pictureBox1.Image = img;
         }
 
         private void button4_Click(object sender, EventArgs e)
@@ -42,8 +37,20 @@ namespace TestNET
             OpenFileDialog openFileDialog1 = new OpenFileDialog();
             if (openFileDialog1.ShowDialog() != DialogResult.OK)
                 return;
-            Image img = ScreenListerNET.GetImageFromVideoFile(openFileDialog1.FileName);
+            Image img = ScreenListerNET.GetImageFromVideoFile(openFileDialog1.FileName, 0);
             pictureBox1.Image = img;
+        }
+
+        private void button5_Click(object sender, EventArgs e)
+        {
+            OpenFileDialog openFileDialog1 = new OpenFileDialog();
+            if (openFileDialog1.ShowDialog() != DialogResult.OK)
+                return;
+            for (int i = 0; i < 1000; i++)
+            {
+                Image img = ScreenListerNET.GetImageFromVideoFile(openFileDialog1.FileName, 0);
+                pictureBox1.Image = img;
+            }
         }
     }
 }

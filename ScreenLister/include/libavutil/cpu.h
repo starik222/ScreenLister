@@ -24,7 +24,9 @@
 #include <stddef.h>
 #include "version.h"
 
-#define AV_CPU_FLAG_FORCE    0x80000000 /* force usage of selected flags (OR) */
+#if FF_API_CPU_FLAG_FORCE
+#define AV_CPU_FLAG_FORCE    0x80000000 /* @deprecated, should not be used */
+#endif
 
     /* lower 16 bits - CPU features */
 #define AV_CPU_FLAG_MMX          0x0001 ///< standard MMX
@@ -72,6 +74,8 @@
 #define AV_CPU_FLAG_VFP_VM       (1 << 7) ///< VFPv2 vector mode, deprecated in ARMv7-A and unavailable in various CPUs implementations
 #define AV_CPU_FLAG_DOTPROD      (1 << 8)
 #define AV_CPU_FLAG_I8MM         (1 << 9)
+#define AV_CPU_FLAG_SVE          (1 <<10)
+#define AV_CPU_FLAG_SVE2         (1 <<11)
 #define AV_CPU_FLAG_SETEND       (1 <<16)
 
 #define AV_CPU_FLAG_MMI          (1 << 0)
@@ -98,6 +102,9 @@
 #define AV_CPU_FLAG_RV_ZVBB      (1 << 9) ///< Vector basic bit-manipulations
 #define AV_CPU_FLAG_RV_MISALIGNED (1 <<10) ///< Fast misaligned accesses
 #define AV_CPU_FLAG_RVB          (1 <<11) ///< B (bit manipulations)
+
+// WASM extensions
+#define AV_CPU_FLAG_SIMD128      (1 << 0)
 
 /**
  * Return the flags which specify extensions supported by the CPU.

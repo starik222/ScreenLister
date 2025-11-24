@@ -26,7 +26,7 @@ typedef struct ScreenList
 	int Height;
 	double Period;
 	int ImgCount;
-	ImageBuf *bufs;
+	ImageBuf* bufs;
 
 } ScreenList;
 
@@ -40,17 +40,16 @@ typedef struct VideoInfo
 
 
 EXPORT void message(void);
-EXPORT ScreenList GetImages(const char * filename, int LineCount, int AllCount, int ResizePercent);
+EXPORT ScreenList GetImages(const char* filename, int LineCount, int AllCount, int ResizePercent);
 
 EXPORT void FreeImageList(ScreenList list);
 
-EXPORT VideoInfo GetVideoInfo(const char * filename);
+EXPORT VideoInfo GetVideoInfo(const char* filename);
 
 EXPORT ImageBuf DecodeFrame(int codecId, char* buffer, int bufSize, char* extraData, int extraDataSize);
 EXPORT ImageBuf DecodeH264Frame(char* buffer, int bufSize, char* extraData, int extraDataSize);
 
-EXPORT ImageBuf GetImageFromVideoBuffer(char* buffer, int bufSize);
-EXPORT ImageBuf GetImageFromVideoFile(const char* filename);
+EXPORT ImageBuf GetImageFromVideoBuffer(char* buffer, int bufSize, int64_t imageTime);
+EXPORT ImageBuf GetImageFromVideoFile(const char* filename, int64_t imageTime);
 
 EXPORT void FreeImageBuffer(ImageBuf buf);
-

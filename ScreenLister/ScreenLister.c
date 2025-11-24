@@ -27,64 +27,9 @@ static int      MemData_read(void* opaque, uint8_t* buf, int buf_size);
 static int64_t  MemData_seek(void* opaque, int64_t offset, int whence);
 static FilePtr  openAVData(const char* fname, const uint8_t* buffer, size_t buffer_len);
 static void     closeAVData(FilePtr* file_ptr);
-static ImageBuf GetImage(const uint8_t* buffer, size_t bufSize, const char* filename);
+static ImageBuf GetImage(const uint8_t* buffer, size_t bufSize, const char* filename, int64_t imageTime);
 
 
-EXPORT VideoInfo GetVideoInfo(const char * filename)
-{
-	VideoInfo info;
-	info.Height = 0;
-	info.Width = 0;
-	AVFormatContext *fmt_ctx = NULL;
-	AVDictionaryEntry *tag = NULL;
-	int video_stream, ret;
-	AVStream *video = NULL;
-	AVCodecContext *decoder_ctx = NULL;
-	AVCodec *decoder = NULL;
-
-	if ((ret = avformat_open_input(&fmt_ctx, filename, NULL, NULL)))
-	{
-		return info;
-	}
-
-	if ((ret = avformat_find_stream_info(fmt_ctx, NULL)) < 0)
-	{
-		av_log(NULL, AV_LOG_ERROR, "Cannot find stream information\n");
-		return info;
-	}
-
-	ret = av_find_best_stream(fmt_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, &decoder, 0);
-	if (ret < 0)
-	{
-		av_log(NULL, AV_LOG_ERROR, "Cannot find a video stream in the input file\n");
-		return info;
-	}
-	video_stream = ret;
-	if (!(decoder_ctx = avcodec_alloc_context3(decoder)))
-	{
-		av_log(NULL, AV_LOG_ERROR, "Cannot allocate context\n");
-		return info;
-	}
-	video = fmt_ctx->streams[video_stream];
-	if (avcodec_parameters_to_context(decoder_ctx, video->codecpar) < 0)
-		return info;
-	if ((ret = avcodec_open2(decoder_ctx, decoder, NULL)) < 0)
-	{
-		av_log(NULL, AV_LOG_ERROR, "Failed to open codec for stream\n");
-		return info;
-	}
-
-	info.Height = decoder_ctx->height;
-	info.Width = decoder_ctx->width;
-
-	avcodec_free_context(&decoder_ctx);
-	avformat_close_input(&fmt_ctx);
-
-	return info;
-
-}
-
-/* Работа с пользовательским IO -------------------------------------------- */
 static int MemData_read(void* opaque, uint8_t* buf, int buf_size) {
 	MemData* membuf = (MemData*)opaque;
 	if (!membuf || !buf || buf_size <= 0) {
@@ -219,25 +164,24 @@ static void closeAVData(FilePtr* file_ptr) {
 	*file_ptr = NULL;
 }
 
-/* --- Публичные функции --- */
-ImageBuf GetImageFromVideoBuffer(char* buffer, int bufSize) {
+ImageBuf GetImageFromVideoBuffer(char* buffer, int bufSize, int64_t imageTime) {
 	ImageBuf empty = { 0 };
 	if (!buffer || bufSize <= 0) {
 		return empty;
 	}
-	return GetImage((const uint8_t*)buffer, (size_t)bufSize, NULL);
+	return GetImage((const uint8_t*)buffer, (size_t)bufSize, NULL, imageTime);
 }
 
-ImageBuf GetImageFromVideoFile(const char* filename) {
+ImageBuf GetImageFromVideoFile(const char* filename, int64_t imageTime) {
 	ImageBuf empty = { 0 };
 	if (!filename) {
 		return empty;
 	}
-	return GetImage(NULL, 0, filename);
+	return GetImage(NULL, 0, filename, imageTime);
 }
 
-static ImageBuf GetImage(const uint8_t* buffer, size_t bufSize, const char* filename) {
-	ImageBuf result = { 0 };
+static ImageBuf GetImage(const uint8_t* buffer, size_t bufSize, const char* filename, int64_t imageTime) {
+	ImageBuf result = { 0, 0, NULL, 0, 0 };
 
 	FilePtr file = openAVData(filename, buffer, bufSize);
 	if (!file) {
@@ -250,6 +194,7 @@ static ImageBuf GetImage(const uint8_t* buffer, size_t bufSize, const char* file
 		closeAVData(&file);
 		return result;
 	}
+
 
 	AVStream* video_stream = file->fmt_ctx->streams[stream_index];
 	AVCodecContext* decoder_ctx = avcodec_alloc_context3(decoder);
@@ -276,113 +221,202 @@ static ImageBuf GetImage(const uint8_t* buffer, size_t bufSize, const char* file
 		return result;
 	}
 
-	int ret = 0;
-	int videoHeight = decoder_ctx->height;
-	int videoWidth = decoder_ctx->width;
-	enum AVPixelFormat IMAGE_FORMAT = AV_PIX_FMT_BGRA;
-	sws_ctx = sws_getContext(videoWidth, videoHeight, decoder_ctx->pix_fmt,
-		videoWidth, videoHeight, IMAGE_FORMAT,
-		SWS_BILINEAR, NULL, NULL, NULL);
+	int64_t videoDuration = 0;
 
-	while (av_read_frame(file->fmt_ctx, packet) >= 0)
+	if (video_stream->duration != AV_NOPTS_VALUE)
 	{
-		if (packet->stream_index == stream_index)
+		videoDuration = ((video_stream->duration * video_stream->time_base.num) / video_stream->time_base.den) * 1000;
+	}
+	else
+	{
+		if (file->fmt_ctx->duration != AV_NOPTS_VALUE)
 		{
+			videoDuration = (file->fmt_ctx->duration / AV_TIME_BASE) * 1000;
+		}
+		else
+			videoDuration = 10 * 60 * 1000;
+	}
+	int64_t targetTs = (int64_t)(imageTime / av_q2d(video_stream->time_base));
+	if (targetTs < 0)
+		targetTs = 0;
+	if (targetTs > videoDuration)
+		targetTs = videoDuration;
+	if (imageTime > 0) 
+	{
+		if (av_seek_frame(file->fmt_ctx, stream_index, targetTs, AVSEEK_FLAG_BACKWARD) < 0) 
+		{
+			goto end;
+		}
+		avcodec_flush_buffers(decoder_ctx);
+	}
+	int ret = 0;
+	int frameFound = 0;
+
+	// 7. Цикл декодирования
+	while (av_read_frame(file->fmt_ctx, packet) >= 0) {
+		if (packet->stream_index == stream_index) {
 			ret = avcodec_send_packet(decoder_ctx, packet);
 			if (ret < 0) {
 				av_packet_unref(packet);
-				if (ret == AVERROR(EAGAIN)) continue;
-				goto exit;
-			}
-
-			ret = avcodec_receive_frame(decoder_ctx, srcFrame);
-			if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
-				av_packet_unref(packet);
 				continue;
 			}
-			if (ret < 0) {
-				av_packet_unref(packet);
-				goto exit;
-			}
-			if (srcFrame->width != videoWidth || srcFrame->height != videoHeight)
-			{
-				videoHeight = srcFrame->height;
-				videoWidth = srcFrame->width;
-				sws_ctx = sws_getCachedContext(sws_ctx,
-					videoWidth, videoHeight, decoder_ctx->pix_fmt,
-					videoWidth, videoHeight, IMAGE_FORMAT,
-					SWS_BILINEAR, NULL, NULL, NULL);
-			}
-			if (!sws_ctx) {
-				av_packet_unref(packet);
-				goto exit;
-			}
-			int64_t pts = srcFrame->best_effort_timestamp;
-			if (pts == AV_NOPTS_VALUE) pts = srcFrame->pts;
-			if (pts == AV_NOPTS_VALUE) pts = srcFrame->pkt_dts;
-			if (pts == AV_NOPTS_VALUE) pts = 0;
 
-			int64_t start = (video_stream->start_time == AV_NOPTS_VALUE) ? 0 : video_stream->start_time;
-			double seconds = (double)(pts - start) * av_q2d(video_stream->time_base);
-			if (seconds < 0.0) seconds = 0.0;
-			result.ImageTime = seconds;
+			while (ret >= 0) {
+				ret = avcodec_receive_frame(decoder_ctx, srcFrame);
+				if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
+					break;
+				}
+				else if (ret < 0) {
+					goto end;
+				}
 
-			AVFrame* dst_frame = av_frame_alloc();
-			if (!dst_frame) {
-				av_packet_unref(packet);
-				goto exit;
-			}
-			int imgBufSize = av_image_alloc(dst_frame->data, dst_frame->linesize,
-				videoWidth, videoHeight, IMAGE_FORMAT, 1);
-
-			if (imgBufSize < 0) {
-				av_frame_free(&dst_frame);
-				av_packet_unref(packet);
-				goto exit;
-			}
-
-			int heightOut = sws_scale(sws_ctx, (const uint8_t* const*)srcFrame->data, srcFrame->linesize,
-				0, videoHeight, dst_frame->data, dst_frame->linesize);
-
-			if (!heightOut)
-			{
-				av_freep(&dst_frame->data[0]);
-				av_frame_free(&dst_frame);
-				result.BufSize = 0;
-				av_packet_unref(packet);
+				frameFound = 1;
 				break;
 			}
-			result.ImgBuf = malloc(imgBufSize);
-			if (result.ImgBuf) {
-				result.BufSize = imgBufSize;
-				result.Height = srcFrame->height;
-				result.Width = srcFrame->width;
-				memcpy(result.ImgBuf, dst_frame->data[0], imgBufSize);
-			}
-			else {
-				result.BufSize = 0;
-			}
-			av_freep(&dst_frame->data[0]);
-			av_frame_free(&dst_frame);
-			av_packet_unref(packet);
-			break;
+			if (frameFound) break;
 		}
 		av_packet_unref(packet);
 	}
 
-exit:
-	if (packet) {
-		av_packet_unref(packet);
-		av_packet_free(&packet);
+	// 8. Конвертация изображения
+	if (frameFound) {
+		// Учитываем, что размер кадра в потоке может быть динамическим,
+		// берем размеры из декодированного pFrame, а не из codec context.
+		result.Width = srcFrame->width;
+		result.Height = srcFrame->height;
+		int64_t pts = srcFrame->best_effort_timestamp;
+		if (pts == AV_NOPTS_VALUE) pts = srcFrame->pts;
+		if (pts == AV_NOPTS_VALUE) pts = srcFrame->pkt_dts;
+		if (pts == AV_NOPTS_VALUE) pts = 0;
+
+		int64_t start = (video_stream->start_time == AV_NOPTS_VALUE) ? 0 : video_stream->start_time;
+		double seconds = (double)(pts - start) * av_q2d(video_stream->time_base);
+		if (seconds < 0.0) seconds = 0.0;
+		result.ImageTime = seconds;
+		//result.ImageTime = imageTime; // Возвращаем запрошенное время (или можно вернуть pFrame->pts пересчитанный в секунды)
+
+		// Формат AV_PIX_FMT_BGRA (как запрошено)
+		// Создаем контекст масштабирования
+		sws_ctx = sws_getContext(
+			srcFrame->width, srcFrame->height, (enum AVPixelFormat)srcFrame->format,
+			srcFrame->width, srcFrame->height, AV_PIX_FMT_BGRA,
+			SWS_BILINEAR, NULL, NULL, NULL
+		);
+
+		if (sws_ctx) {
+			// Временные массивы для данных и шага строк с учетом выравнивания FFmpeg
+			uint8_t* align_data[4] = { NULL };
+			int align_linesize[4] = { 0 };
+
+			// 1. Выделяем правильный буфер средствами FFmpeg (с выравниванием 32 байта)
+			if (av_image_alloc(align_data, align_linesize,
+				result.Width, result.Height, AV_PIX_FMT_BGRA, 32) >= 0) {
+
+				// 2. Конвертируем в этот выравненный буфер
+				sws_scale(
+					sws_ctx,
+					(const uint8_t* const*)srcFrame->data,
+					srcFrame->linesize,
+					0,
+					srcFrame->height,
+					align_data,
+					align_linesize
+				);
+
+				// 3. Выделяем память под итоговый результат (плотный массив без отступов)
+				// av_image_get_buffer_size рассчитывает размер плотного буфера (align=1)
+				int size = av_image_get_buffer_size(AV_PIX_FMT_BGRA, result.Width, result.Height, 1);
+				result.BufSize = (unsigned long)size;
+				result.ImgBuf = malloc(result.BufSize);
+
+				if (result.ImgBuf) {
+					// 4. Копируем из выравненного буфера FFmpeg в наш плотный буфер
+					av_image_copy_to_buffer(
+						(uint8_t*)result.ImgBuf,
+						size,
+						(const uint8_t* const*)align_data,
+						align_linesize,
+						AV_PIX_FMT_BGRA,
+						result.Width,
+						result.Height,
+						1 // Выравнивание 1 байт (плотная упаковка)
+					);
+				}
+
+				// Освобождаем временный буфер FFmpeg
+				av_freep(&align_data[0]);
+			}
+			sws_freeContext(sws_ctx);
+		}
 	}
+
+end:
+	// 9. Очистка ресурсов
+	if (packet) av_packet_free(&packet);
 	if (srcFrame) av_frame_free(&srcFrame);
-	if (sws_ctx) sws_freeContext(sws_ctx);
 	if (decoder_ctx) avcodec_free_context(&decoder_ctx);
 	closeAVData(&file);
+
 	return result;
+
 }
 
-EXPORT ScreenList GetImages(const char * filename, int LineCount, int AllCount, int ResizePercent) {
+
+EXPORT VideoInfo GetVideoInfo(const char * filename)
+{
+	VideoInfo info;
+	info.Height = 0;
+	info.Width = 0;
+	AVFormatContext *fmt_ctx = NULL;
+	AVDictionaryEntry *tag = NULL;
+	int video_stream, ret;
+	AVStream *video = NULL;
+	AVCodecContext *decoder_ctx = NULL;
+	AVCodec *decoder = NULL;
+
+	if ((ret = avformat_open_input(&fmt_ctx, filename, NULL, NULL)))
+	{
+		return info;
+	}
+
+	if ((ret = avformat_find_stream_info(fmt_ctx, NULL)) < 0)
+	{
+		av_log(NULL, AV_LOG_ERROR, "Cannot find stream information\n");
+		return info;
+	}
+
+	ret = av_find_best_stream(fmt_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, &decoder, 0);
+	if (ret < 0)
+	{
+		av_log(NULL, AV_LOG_ERROR, "Cannot find a video stream in the input file\n");
+		return info;
+	}
+	video_stream = ret;
+	if (!(decoder_ctx = avcodec_alloc_context3(decoder)))
+	{
+		av_log(NULL, AV_LOG_ERROR, "Cannot allocate context\n");
+		return info;
+	}
+	video = fmt_ctx->streams[video_stream];
+	if (avcodec_parameters_to_context(decoder_ctx, video->codecpar) < 0)
+		return info;
+	if ((ret = avcodec_open2(decoder_ctx, decoder, NULL)) < 0)
+	{
+		av_log(NULL, AV_LOG_ERROR, "Failed to open codec for stream\n");
+		return info;
+	}
+
+	info.Height = decoder_ctx->height;
+	info.Width = decoder_ctx->width;
+
+	avcodec_free_context(&decoder_ctx);
+	avformat_close_input(&fmt_ctx);
+
+	return info;
+
+}
+
+ScreenList GetImages(const char * filename, int LineCount, int AllCount, int ResizePercent) {
 
 	enum AVPixelFormat IMAGE_FORMAT = AV_PIX_FMT_BGRA;
 	if (ResizePercent)
@@ -726,9 +760,8 @@ EXPORT void FreeImageList(ScreenList list)
 
 EXPORT void FreeImageBuffer(ImageBuf buf)
 {
-
-		if (buf.BufSize > 0)
-			free(buf.ImgBuf);
+	if (buf.BufSize)
+		free(buf.ImgBuf);
 }
 
 

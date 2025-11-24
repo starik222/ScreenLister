@@ -86,7 +86,7 @@ int main(int argc, char **argv)
 	}
 
 	char searchPath[MAX_PATH];
-	snprintf(searchPath, MAX_PATH, "%s\\*.avi", argv[1]);
+	snprintf(searchPath, MAX_PATH, "%s\\*.mp4", argv[1]);
 
 	WIN32_FIND_DATA findFileData;
 	HANDLE hFind = FindFirstFile(searchPath, &findFileData);
@@ -108,8 +108,8 @@ int main(int argc, char **argv)
 			strcat(outputPath, ".bmp");
 
 			printf("Processing: %s\n", inputPath);
-
-			ImageBuf image = GetImageFromVideoFile(inputPath);
+			//ScreenList srcList = GetImages(inputPath, 5, 30, 100);
+			ImageBuf image = GetImageFromVideoFile(inputPath, 0);
 			if (image.ImgBuf == NULL || image.BufSize == 0) {
 				printf("Error processing file: %s\n", inputPath);
 				continue;

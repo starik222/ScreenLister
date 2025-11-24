@@ -21,21 +21,27 @@ EXPORTS
     av_codec_is_decoder
     av_codec_is_encoder
     av_codec_iterate
+    av_container_fifo_alloc_avpacket
     av_cpb_properties_alloc
     av_d3d11va_alloc_context
-    av_dct_calc
-    av_dct_end
-    av_dct_init
     av_dirac_parse_sequence_header
     av_dv_codec_profile
     av_dv_codec_profile2
     av_dv_frame_profile
+    av_exif_clone_ifd
+    av_exif_free
+    av_exif_get_entry
+    av_exif_get_tag_id
+    av_exif_get_tag_name
+    av_exif_ifd_to_dict
+    av_exif_matrix_to_orientation
+    av_exif_orientation_to_matrix
+    av_exif_parse_buffer
+    av_exif_remove_entry
+    av_exif_set_entry
+    av_exif_write
     av_fast_padded_malloc
     av_fast_padded_mallocz
-    av_fft_calc
-    av_fft_end
-    av_fft_init
-    av_fft_permute
     av_get_audio_frame_duration
     av_get_audio_frame_duration2
     av_get_bits_per_sample
@@ -43,14 +49,9 @@ EXPORTS
     av_get_pcm_codec
     av_get_profile_name
     av_grow_packet
-    av_imdct_calc
-    av_imdct_half
     av_init_packet
     av_jni_get_java_vm
     av_jni_set_java_vm
-    av_mdct_calc
-    av_mdct_end
-    av_mdct_init
     av_mediacodec_alloc_context
     av_mediacodec_default_free
     av_mediacodec_default_init
@@ -75,10 +76,12 @@ EXPORTS
     av_packet_shrink_side_data
     av_packet_side_data_add
     av_packet_side_data_free
+    av_packet_side_data_from_frame
     av_packet_side_data_get
     av_packet_side_data_name
     av_packet_side_data_new
     av_packet_side_data_remove
+    av_packet_side_data_to_frame
     av_packet_unpack_dictionary
     av_packet_unref
     av_parser_close
@@ -86,10 +89,18 @@ EXPORTS
     av_parser_iterate
     av_parser_parse2
     av_qsv_alloc_context
-    av_rdft_calc
-    av_rdft_end
-    av_rdft_init
     av_shrink_packet
+    av_smpte_291m_anc_8bit_decode
+    av_smpte_291m_anc_8bit_encode
+    av_smpte_291m_anc_8bit_extract_cta_708
+    av_smpte_291m_anc_8bit_fill_checksum
+    av_smpte_291m_anc_8bit_get_sample_count
+    av_smpte_436m_anc_append
+    av_smpte_436m_anc_encode
+    av_smpte_436m_anc_iter_init
+    av_smpte_436m_anc_iter_next
+    av_smpte_436m_coded_anc_payload_size
+    av_smpte_436m_coded_anc_validate
     av_vorbis_parse_frame
     av_vorbis_parse_frame_flags
     av_vorbis_parse_free
@@ -99,7 +110,6 @@ EXPORTS
     avcodec_align_dimensions
     avcodec_align_dimensions2
     avcodec_alloc_context3
-    avcodec_close
     avcodec_configuration
     avcodec_dct_alloc
     avcodec_dct_get_class
@@ -156,7 +166,6 @@ EXPORTS
     avpriv_find_start_code
     avpriv_fits_header_init
     avpriv_fits_header_parse_line
-    avpriv_get_raw_pix_fmt_tags
     avpriv_h264_has_num_reorder_frames
     avpriv_mpeg4audio_get_config2
     avpriv_mpegaudio_decode_header

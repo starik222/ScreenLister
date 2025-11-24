@@ -81,12 +81,11 @@ namespace ScreenLister
             }
             return null;
         }
-
-        public static Image GetImageFromVideoBuffer(byte[] videoData)
+        public static Image GetImageFromVideoBuffer(byte[] videoData, long imageTime)
         {
             IntPtr memBuffer = Marshal.AllocHGlobal(videoData.Length);
             Marshal.Copy(videoData, 0, memBuffer, videoData.Length);
-            Ext.ImageBuf res = Ext.GetImageFromVideoBuffer(memBuffer, videoData.Length);
+            Ext.ImageBuf res = Ext.GetImageFromVideoBuffer(memBuffer, videoData.Length, imageTime);
             Marshal.FreeHGlobal(memBuffer);
             if (res.BufSize > 0)
             {
@@ -109,9 +108,9 @@ namespace ScreenLister
             return null;
         }
 
-        public static Image GetImageFromVideoFile(string fileName)
+        public static Image GetImageFromVideoFile(string fileName, long imageTime)
         {
-            Ext.ImageBuf res = Ext.GetImageFromVideoFile(fileName);
+            Ext.ImageBuf res = Ext.GetImageFromVideoFile(fileName, imageTime);
             if (res.BufSize > 0)
             {
                 //BMPFile bMPFile = new BMPFile(m_pCodecCtx.width, m_pCodecCtx.height, 32);
