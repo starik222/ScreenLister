@@ -8,6 +8,7 @@
 #include <libavutil/mem.h>
 #include <libswscale/swscale.h>
 #include "ScreenLister.h"
+#include <windows.h>
 
 typedef struct PacketList {
 	AVPacket pkt;
@@ -27,6 +28,7 @@ static int      MemData_read(void* opaque, uint8_t* buf, int buf_size);
 static int64_t  MemData_seek(void* opaque, int64_t offset, int whence);
 static FilePtr  openAVData(const char* fname, const uint8_t* buffer, size_t buffer_len);
 static void     closeAVData(FilePtr* file_ptr);
+static char* ConvertPathToUtf8(const char* srcFilename);
 static ImageBuf GetImage(const uint8_t* buffer, size_t bufSize, const char* filename, int64_t imageTime);
 
 
@@ -180,17 +182,60 @@ ImageBuf GetImageFromVideoFile(const char* filename, int64_t imageTime) {
 	return GetImage(NULL, 0, filename, imageTime);
 }
 
+static char* ConvertPathToUtf8(const char* srcFilename) {
+	if (!srcFilename) return NULL;
+
+	// 1. Узнаем длину строки в широких символах (UTF-16)
+	// CP_ACP - системная кодировка (Active Code Page)
+	int wLen = MultiByteToWideChar(CP_ACP, 0, srcFilename, -1, NULL, 0);
+	if (wLen == 0) return NULL;
+
+	// Выделяем память под UTF-16
+	wchar_t* wPath = (wchar_t*)malloc(wLen * sizeof(wchar_t));
+	if (!wPath) return NULL;
+
+	// Конвертируем char -> wchar_t
+	MultiByteToWideChar(CP_ACP, 0, srcFilename, -1, wPath, wLen);
+
+	// 2. Узнаем длину строки в UTF-8
+	int u8Len = WideCharToMultiByte(CP_UTF8, 0, wPath, -1, NULL, 0, NULL, NULL);
+	if (u8Len == 0) {
+		free(wPath);
+		return NULL;
+	}
+
+	// Выделяем память под UTF-8
+	char* u8Path = (char*)malloc(u8Len);
+	if (!u8Path) {
+		free(wPath);
+		return NULL;
+	}
+
+	// Конвертируем wchar_t -> char (UTF-8)
+	WideCharToMultiByte(CP_UTF8, 0, wPath, -1, u8Path, u8Len, NULL, NULL);
+
+	free(wPath);
+	return u8Path;
+}
+
 static ImageBuf GetImage(const uint8_t* buffer, size_t bufSize, const char* filename, int64_t imageTime) {
 	ImageBuf result = { 0, 0, NULL, 0, 0 };
+	char* utf8Filename = NULL;
+	utf8Filename = ConvertPathToUtf8(filename);
+	if (!utf8Filename) {
+		return result;
+	}
 
-	FilePtr file = openAVData(filename, buffer, bufSize);
+	FilePtr file = openAVData(utf8Filename, buffer, bufSize);
 	if (!file) {
+		free(utf8Filename);
 		return result;
 	}
 
 	const AVCodec* decoder = NULL;
 	int stream_index = av_find_best_stream(file->fmt_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, &decoder, 0);
 	if (stream_index < 0) {
+		free(utf8Filename);
 		closeAVData(&file);
 		return result;
 	}
@@ -199,12 +244,14 @@ static ImageBuf GetImage(const uint8_t* buffer, size_t bufSize, const char* file
 	AVStream* video_stream = file->fmt_ctx->streams[stream_index];
 	AVCodecContext* decoder_ctx = avcodec_alloc_context3(decoder);
 	if (!decoder_ctx) {
+		free(utf8Filename);
 		closeAVData(&file);
 		return result;
 	}
 
 	if (avcodec_parameters_to_context(decoder_ctx, video_stream->codecpar) < 0 ||
 		avcodec_open2(decoder_ctx, decoder, NULL) < 0) {
+		free(utf8Filename);
 		avcodec_free_context(&decoder_ctx);
 		closeAVData(&file);
 		return result;
@@ -214,6 +261,7 @@ static ImageBuf GetImage(const uint8_t* buffer, size_t bufSize, const char* file
 	AVFrame* srcFrame = av_frame_alloc();
 	AVPacket* packet = av_packet_alloc();
 	if (!srcFrame || !packet) {
+		free(utf8Filename);
 		av_packet_free(&packet);
 		av_frame_free(&srcFrame);
 		avcodec_free_context(&decoder_ctx);
@@ -352,6 +400,7 @@ static ImageBuf GetImage(const uint8_t* buffer, size_t bufSize, const char* file
 
 end:
 	// 9. Очистка ресурсов
+	if (utf8Filename) free(utf8Filename);
 	if (packet) av_packet_free(&packet);
 	if (srcFrame) av_frame_free(&srcFrame);
 	if (decoder_ctx) avcodec_free_context(&decoder_ctx);
@@ -457,6 +506,7 @@ ScreenList GetImages(const char * filename, int LineCount, int AllCount, int Res
 	//инициализация
 	if ((ret = avformat_open_input(&fmt_ctx, filename, NULL, NULL))) 
 	{
+		const char* errText = av_err2str(ret);
 		return retList;
 	}
 		

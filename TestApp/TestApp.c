@@ -61,7 +61,7 @@ int main(int argc, char **argv)
 	//fclose(pFileData2);
 
 	//ImageBuf b = DecodeH264Frame(buffer, lSize, bufferExtra, lSize2);
-	//ImageBuf img1 = GetImageFromVideoFile(argv[1]);
+	//ImageBuf img1 = GetImageFromVideoFile(argv[1], 0);
 	//getch();
 	//return 0;
 	//FILE* f;
