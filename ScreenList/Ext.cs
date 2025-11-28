@@ -220,7 +220,7 @@ namespace ScreenLister
         [DllImport(_sPathDLL, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
         static internal extern Ext.ScreenList GetImages([MarshalAs(UnmanagedType.LPStr)] string filename, int LineCount, int AllCount, int ResizePercent);
         [DllImport(_sPathDLL, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-        static internal extern Ext.ScreenList GetImagesV2([MarshalAs(UnmanagedType.LPStr)] string filename, int LineCount, int AllCount, int ResizePercent);
+        static internal extern Ext.ScreenList GetImagesV2([MarshalAs(UnmanagedType.LPStr)] string filename, int imagesCount, int resizePercent);
 
         [DllImport(_sPathDLL, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
         static internal extern Ext.VideoInfo GetVideoInfo([MarshalAs(UnmanagedType.LPStr)] string filename);

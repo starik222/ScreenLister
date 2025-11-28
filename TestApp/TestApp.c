@@ -108,7 +108,7 @@ int main(int argc, char **argv)
 			strcat(outputPath, ".bmp");
 
 			printf("Processing: %s\n", inputPath);
-			ScreenList srcList = GetImagesV2(inputPath, 5, 30, 100);
+			ScreenList srcList = GetImagesV2(inputPath, 10, 0);
 			FreeImageList(srcList);
 			ImageBuf image = GetImageFromVideoFile(inputPath, 0);
 			if (image.ImgBuf == NULL || image.BufSize == 0) {

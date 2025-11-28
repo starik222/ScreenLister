@@ -136,7 +136,7 @@ namespace ScreenLister
         public static Image GetScreenList(string videoPath, int inLineCount, int allCount, int PreviewImageResizePercent)
         {
 
-            Ext.ScreenList list = Ext.GetImagesV2(videoPath, inLineCount, allCount, PreviewImageResizePercent);
+            Ext.ScreenList list = Ext.GetImagesV2(videoPath, allCount, PreviewImageResizePercent);
             //Ext.ScreenList list = Marshal.PtrToStructure<Ext.ScreenList>(IntPtr.Zero);
             List<Ext.ImageBuf> bufInfo = new List<Ext.ImageBuf>();
             List<KeyValuePair<TimeSpan, Image>> imgs = new List<KeyValuePair<TimeSpan, Image>>();
@@ -168,14 +168,14 @@ namespace ScreenLister
             }
             Ext.FreeImageList(list);
             //Marshal.FreeHGlobal(list.bufs);
-            return GenerateScreenList(imgs, inLineCount, allCount, (decimal)list.Period, list.Width, list.Height);
+            return GenerateScreenList(imgs, inLineCount, allCount, list.Period, list.Width, list.Height);
 
         }
 
         public static List<KeyValuePair<TimeSpan, Image>> GetImages(string videoPath, int inLineCount, int allCount, int PreviewImageResizePercent)
         {
 
-            Ext.ScreenList list = Ext.GetImagesV2(videoPath, inLineCount, allCount, PreviewImageResizePercent);
+            Ext.ScreenList list = Ext.GetImagesV2(videoPath, allCount, PreviewImageResizePercent);
             //Ext.ScreenList list = Marshal.PtrToStructure<Ext.ScreenList>(IntPtr.Zero);
             List<Ext.ImageBuf> bufInfo = new List<Ext.ImageBuf>();
             List<KeyValuePair<TimeSpan, Image>> imgs = new List<KeyValuePair<TimeSpan, Image>>();
@@ -254,20 +254,20 @@ namespace ScreenLister
                 else 
                     images.Add(null);
             }
-            return new ImageData() { ScreenList = GenerateScreenList(imgs, inLineCount, allCount, (decimal)list.Period, list.Width, list.Height), AllImages = images };
+            return new ImageData() { ScreenList = GenerateScreenList(imgs, inLineCount, allCount, list.Period, list.Width, list.Height), AllImages = images };
 
         }
 
 
 
-        private static Image GenerateScreenList(List<KeyValuePair<TimeSpan, Image>> images, int inLineCount, int allCount, decimal period, int vWdth, int vHeight)
+        private static Image GenerateScreenList(List<KeyValuePair<TimeSpan, Image>> images, int inLineCount, int allCount, double period, int vWdth, int vHeight)
         {
             int p = 0;
             int col = allCount;
             //int period = 1000;
             //int period = Convert.ToInt32(ts.TotalMilliseconds) / col;
             int w = 0, h = 0, column = inLineCount;
-            using (Image mm = DrawWithTime(images, vWdth, vHeight, column, (int)(period * 1000)))
+            using (Image mm = DrawWithTime(images, vWdth, vHeight, column, period * 1000))
             {
                 //Image mm = Draw(images, videoWidth, videoHeight, column);
                 //mm = ResizeImg(mm, PreviewImageResizePercent);
@@ -275,7 +275,7 @@ namespace ScreenLister
             }
         }
 
-        private static Image DrawWithTime(List<KeyValuePair<TimeSpan, Image>> images, int Width, int Height, int ColumnsCount, int period)
+        private static Image DrawWithTime(List<KeyValuePair<TimeSpan, Image>> images, int Width, int Height, int ColumnsCount, double period)
         {
             TimeSpan wrongTs = TimeSpan.FromSeconds(-1);
             Font drawFont = new Font("Arial", 16, FontStyle.Bold);

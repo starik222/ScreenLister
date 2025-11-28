@@ -465,7 +465,7 @@ EXPORT VideoInfo GetVideoInfo(const char * filename)
 
 }
 
-ScreenList GetImagesV2(const char* filename, int LineCount, int AllCount, int ResizePercent) {
+ScreenList GetImagesV2(const char* filename, int imagesCount, int ResizePercent) {
 	ScreenList retList = { 0 };
 	retList.ImgCount = 0;
 
@@ -493,8 +493,8 @@ ScreenList GetImagesV2(const char* filename, int LineCount, int AllCount, int Re
 	int videoHeightNew = 0;
 	int videoWidthNew = 0;
 
-	double step = 0;
-	double curPos = 0;
+	int64_t step = 0;
+	int64_t curPos = 0;
 
 	//инициализация
 	if ((ret = avformat_open_input(&fmt_ctx, utf8Filename, NULL, NULL)))
@@ -533,20 +533,13 @@ ScreenList GetImagesV2(const char* filename, int LineCount, int AllCount, int Re
 	}
 	if (decoder_ctx->width == 0 || decoder_ctx->height == 0)
 		goto exit;
-	if (video_stream->duration != AV_NOPTS_VALUE)
-	{
-		videoDuration = ((video_stream->duration * video_stream->time_base.num) / video_stream->time_base.den) * 1000;
-	}
-	else
-	{
-		if (fmt_ctx->duration != AV_NOPTS_VALUE)
-		{
-			videoDuration = (fmt_ctx->duration / AV_TIME_BASE) * 1000;
-		}
-		else
-			videoDuration = 10 * 60 * 1000;
-	}
-	startTime = ((video_stream->start_time * video_stream->time_base.num) / video_stream->time_base.den) * 1000;
+
+	videoDuration = video_stream->duration;
+	if (videoDuration <= 0) videoDuration = fmt_ctx->duration / (AV_TIME_BASE * av_q2d(video_stream->time_base));
+	if (videoDuration <= 0) videoDuration = video_stream->nb_frames;
+	if (videoDuration <= 0) videoDuration = 10 * 60 * 1000;
+	startTime = (video_stream->start_time == AV_NOPTS_VALUE) ? 0 : video_stream->start_time;
+
 	videoWidth = decoder_ctx->width;
 	videoHeight = decoder_ctx->height;
 	if (ResizePercent)
@@ -559,13 +552,13 @@ ScreenList GetImagesV2(const char* filename, int LineCount, int AllCount, int Re
 		videoHeightNew = videoHeight;
 		videoWidthNew = videoWidth;
 	}
-	retList.bufs = malloc(sizeof(ImageBuf) * AllCount);
+	retList.bufs = malloc(sizeof(ImageBuf) * imagesCount);
 	retList.Height = videoHeightNew;
 	retList.Width = videoWidthNew;
-	retList.ImgCount = AllCount;
-	curPos = video_stream->start_time;
-	step = (((float)videoDuration / (float)AllCount) / (float)1000.0f) * (float)video_stream->time_base.den / (float)video_stream->time_base.num;
-	retList.Period = (double)videoDuration / (double)AllCount;
+	retList.ImgCount = imagesCount;
+	curPos = startTime;
+	step = videoDuration / imagesCount;
+	retList.Period = step;
 
 	struct SwsContext* sws_ctx = NULL;
 	srcFrame = av_frame_alloc();
@@ -576,7 +569,7 @@ ScreenList GetImagesV2(const char* filename, int LineCount, int AllCount, int Re
 	// Временные массивы для данных и шага строк с учетом выравнивания FFmpeg
 	uint8_t* align_data[4] = { NULL };
 	int align_linesize[4] = { 0 };
-	for (int i = 0; i < AllCount; i++)
+	for (int i = 0; i < imagesCount; i++)
 	{
 		retList.bufs[i].BufSize = 0;
 		retList.bufs[i].ImageTime = 0;

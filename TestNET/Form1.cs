@@ -15,7 +15,7 @@ namespace TestNET
             OpenFileDialog openFileDialog1 = new OpenFileDialog();
             if (openFileDialog1.ShowDialog() != DialogResult.OK)
                 return;
-            Image img = ScreenListerNET.GetScreenList(openFileDialog1.FileName, 5, 30, 50);
+            Image img = ScreenListerNET.GetScreenList(openFileDialog1.FileName, 8, 30, 50);
             pictureBox1.Image = img;
         }
 

@@ -2,7 +2,7 @@
   "profiles": {
     "TestNET": {
       "commandName": "Project",
-      "nativeDebugging": true
+      "nativeDebugging": false
     }
   }
 }
