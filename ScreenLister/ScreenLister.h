@@ -41,6 +41,7 @@ typedef struct VideoInfo
 
 EXPORT void message(void);
 EXPORT ScreenList GetImages(const char* filename, int LineCount, int AllCount, int ResizePercent);
+EXPORT ScreenList GetImagesV2(const char* filename, int LineCount, int AllCount, int ResizePercent);
 
 EXPORT void FreeImageList(ScreenList list);
 

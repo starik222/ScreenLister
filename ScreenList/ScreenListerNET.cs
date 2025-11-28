@@ -136,7 +136,7 @@ namespace ScreenLister
         public static Image GetScreenList(string videoPath, int inLineCount, int allCount, int PreviewImageResizePercent)
         {
 
-            Ext.ScreenList list = Ext.GetImages(videoPath, inLineCount, allCount, PreviewImageResizePercent);
+            Ext.ScreenList list = Ext.GetImagesV2(videoPath, inLineCount, allCount, PreviewImageResizePercent);
             //Ext.ScreenList list = Marshal.PtrToStructure<Ext.ScreenList>(IntPtr.Zero);
             List<Ext.ImageBuf> bufInfo = new List<Ext.ImageBuf>();
             List<KeyValuePair<TimeSpan, Image>> imgs = new List<KeyValuePair<TimeSpan, Image>>();
@@ -169,6 +169,45 @@ namespace ScreenLister
             Ext.FreeImageList(list);
             //Marshal.FreeHGlobal(list.bufs);
             return GenerateScreenList(imgs, inLineCount, allCount, (decimal)list.Period, list.Width, list.Height);
+
+        }
+
+        public static List<KeyValuePair<TimeSpan, Image>> GetImages(string videoPath, int inLineCount, int allCount, int PreviewImageResizePercent)
+        {
+
+            Ext.ScreenList list = Ext.GetImagesV2(videoPath, inLineCount, allCount, PreviewImageResizePercent);
+            //Ext.ScreenList list = Marshal.PtrToStructure<Ext.ScreenList>(IntPtr.Zero);
+            List<Ext.ImageBuf> bufInfo = new List<Ext.ImageBuf>();
+            List<KeyValuePair<TimeSpan, Image>> imgs = new List<KeyValuePair<TimeSpan, Image>>();
+            for (int i = 0; i < list.ImgCount; i++)
+            {
+                Ext.ImageBuf m_img = Marshal.PtrToStructure<Ext.ImageBuf>(list.bufs + (Marshal.SizeOf<Ext.ImageBuf>()) * i);
+                if (m_img.BufSize > 0)
+                {
+                    //BMPFile bMPFile = new BMPFile(m_pCodecCtx.width, m_pCodecCtx.height, 32);
+                    BMPFile bMPFile = new BMPFile(list.Width, list.Height, 32);
+                    //byte[] imgBuffer = new byte[m_pCodecCtx.width * m_pCodecCtx.height * 32 / 8];
+                    byte[] imgBuffer = new byte[m_img.BufSize];
+                    Marshal.Copy(m_img.ImgBuf, imgBuffer, 0, imgBuffer.Length);
+                    using (MemoryStream ms = new MemoryStream(bMPFile.CreateFromBuffer(imgBuffer)))
+                    {
+                        using (Image img = Image.FromStream(ms))
+                        {
+                            img.RotateFlip(RotateFlipType.RotateNoneFlipY);
+                            ms.Close();
+                            imgs.Add(new KeyValuePair<TimeSpan, Image>(TimeSpan.FromSeconds(m_img.ImageTime), (Image)img.Clone()));
+                        }
+                    }
+                }
+                else
+                {
+                    imgs.Add(new KeyValuePair<TimeSpan, Image>(TimeSpan.FromSeconds(-1), null));
+                }
+
+            }
+            Ext.FreeImageList(list);
+            //Marshal.FreeHGlobal(list.bufs);
+            return imgs;
 
         }
 

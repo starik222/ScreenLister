@@ -216,9 +216,11 @@ namespace ScreenLister
             public int Height;
         }
         private const string _sPathDLL = "win-x64\\ScreenLister.dll";
-
+        [Obsolete("GetImages is deprecated, please use GetImagesV2 instead.")]
         [DllImport(_sPathDLL, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
         static internal extern Ext.ScreenList GetImages([MarshalAs(UnmanagedType.LPStr)] string filename, int LineCount, int AllCount, int ResizePercent);
+        [DllImport(_sPathDLL, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+        static internal extern Ext.ScreenList GetImagesV2([MarshalAs(UnmanagedType.LPStr)] string filename, int LineCount, int AllCount, int ResizePercent);
 
         [DllImport(_sPathDLL, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
         static internal extern Ext.VideoInfo GetVideoInfo([MarshalAs(UnmanagedType.LPStr)] string filename);

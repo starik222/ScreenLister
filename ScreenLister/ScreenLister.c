@@ -465,6 +465,238 @@ EXPORT VideoInfo GetVideoInfo(const char * filename)
 
 }
 
+ScreenList GetImagesV2(const char* filename, int LineCount, int AllCount, int ResizePercent) {
+	ScreenList retList = { 0 };
+	retList.ImgCount = 0;
+
+	char* utf8Filename = NULL;
+	utf8Filename = ConvertPathToUtf8(filename);
+	if (!utf8Filename) {
+		return retList;
+	}
+
+	enum AVPixelFormat IMAGE_FORMAT = AV_PIX_FMT_BGRA;
+	if (ResizePercent)
+		ResizePercent = 100 - ResizePercent;
+	AVFormatContext* fmt_ctx = NULL;
+	AVCodecContext* decoder_ctx = NULL;
+	AVFrame* srcFrame = NULL;
+	AVPacket* packet = NULL;
+	int ret = 0;
+
+	int64_t videoDuration = -1;
+	int64_t startTime = -1;
+
+	int videoHeight = 0;
+	int videoWidth = 0;
+
+	int videoHeightNew = 0;
+	int videoWidthNew = 0;
+
+	double step = 0;
+	double curPos = 0;
+
+	//инициализация
+	if ((ret = avformat_open_input(&fmt_ctx, utf8Filename, NULL, NULL)))
+	{
+		free(utf8Filename);
+		return retList;
+	}
+
+	if ((ret = avformat_find_stream_info(fmt_ctx, NULL)) < 0)
+	{
+		av_log(NULL, AV_LOG_ERROR, "Cannot find stream information\n");
+		goto exit;
+	}
+	const AVCodec* decoder = NULL;
+	ret = av_find_best_stream(fmt_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, &decoder, 0);
+	if (ret < 0)
+	{
+		av_log(NULL, AV_LOG_ERROR, "Cannot find a video stream in the input file\n");
+		goto exit;
+	}
+	int stream_index = ret;
+	AVStream* video_stream = fmt_ctx->streams[stream_index];
+	decoder_ctx = avcodec_alloc_context3(decoder);
+	if (!decoder_ctx)
+	{
+		av_log(NULL, AV_LOG_ERROR, "Cannot allocate context\n");
+		goto exit;
+	}
+
+	if (avcodec_parameters_to_context(decoder_ctx, video_stream->codecpar) < 0)
+		goto exit;
+	if ((ret = avcodec_open2(decoder_ctx, decoder, NULL)) < 0)
+	{
+		av_log(NULL, AV_LOG_ERROR, "Failed to open codec for stream\n");
+		goto exit;
+	}
+	if (decoder_ctx->width == 0 || decoder_ctx->height == 0)
+		goto exit;
+	if (video_stream->duration != AV_NOPTS_VALUE)
+	{
+		videoDuration = ((video_stream->duration * video_stream->time_base.num) / video_stream->time_base.den) * 1000;
+	}
+	else
+	{
+		if (fmt_ctx->duration != AV_NOPTS_VALUE)
+		{
+			videoDuration = (fmt_ctx->duration / AV_TIME_BASE) * 1000;
+		}
+		else
+			videoDuration = 10 * 60 * 1000;
+	}
+	startTime = ((video_stream->start_time * video_stream->time_base.num) / video_stream->time_base.den) * 1000;
+	videoWidth = decoder_ctx->width;
+	videoHeight = decoder_ctx->height;
+	if (ResizePercent)
+	{
+		videoHeightNew = videoHeight * ResizePercent / 100;
+		videoWidthNew = videoWidth * ResizePercent / 100;
+	}
+	else
+	{
+		videoHeightNew = videoHeight;
+		videoWidthNew = videoWidth;
+	}
+	retList.bufs = malloc(sizeof(ImageBuf) * AllCount);
+	retList.Height = videoHeightNew;
+	retList.Width = videoWidthNew;
+	retList.ImgCount = AllCount;
+	curPos = video_stream->start_time;
+	step = (((float)videoDuration / (float)AllCount) / (float)1000.0f) * (float)video_stream->time_base.den / (float)video_stream->time_base.num;
+	retList.Period = (double)videoDuration / (double)AllCount;
+
+	struct SwsContext* sws_ctx = NULL;
+	srcFrame = av_frame_alloc();
+	packet = av_packet_alloc();
+	if (!srcFrame || !packet) {
+		goto exit;
+	}
+	// Временные массивы для данных и шага строк с учетом выравнивания FFmpeg
+	uint8_t* align_data[4] = { NULL };
+	int align_linesize[4] = { 0 };
+	for (int i = 0; i < AllCount; i++)
+	{
+		retList.bufs[i].BufSize = 0;
+		retList.bufs[i].ImageTime = 0;
+		ret = av_seek_frame(fmt_ctx, stream_index, curPos, AVSEEK_FLAG_BACKWARD);
+		if (ret < 0)
+		{
+			retList.bufs[i].BufSize = 0;
+			continue;
+		}
+		avcodec_flush_buffers(decoder_ctx);
+
+		int frameFound = 0;
+		// 7. Цикл декодирования
+		while (av_read_frame(fmt_ctx, packet) >= 0) {
+			if (packet->stream_index == stream_index) {
+				ret = avcodec_send_packet(decoder_ctx, packet);
+				if (ret < 0) {
+					av_packet_unref(packet);
+					continue;
+				}
+
+				while (ret >= 0) {
+					ret = avcodec_receive_frame(decoder_ctx, srcFrame);
+					if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
+						break;
+					}
+					else if (ret < 0) {
+						goto exit;
+					}
+
+					frameFound = 1;
+					break;
+				}
+				if (frameFound) break;
+			}
+			av_packet_unref(packet);
+		}
+
+		// 8. Конвертация изображения
+		if (frameFound) {
+
+			//float decodecTs = (((float)(packet->pts != AV_NOPTS_VALUE ? packet->pts : packet->dts) - (float)video_stream->start_time) / (float)video_stream->time_base.den) * (float)video_stream->time_base.num;
+			int64_t pts = srcFrame->best_effort_timestamp;
+			if (pts == AV_NOPTS_VALUE) pts = srcFrame->pts;
+			if (pts == AV_NOPTS_VALUE) pts = srcFrame->pkt_dts;
+			if (pts == AV_NOPTS_VALUE) pts = 0;
+
+			int64_t start = (video_stream->start_time == AV_NOPTS_VALUE) ? 0 : video_stream->start_time;
+			float seconds = (float)(pts - start) * av_q2d(video_stream->time_base);
+			retList.bufs[i].ImageTime = seconds;
+			retList.bufs[i].Width = srcFrame->width;
+			retList.bufs[i].Height = srcFrame->height;
+
+
+
+			// Формат AV_PIX_FMT_BGRA (как запрошено)
+			// Создаем контекст масштабирования
+			sws_ctx = sws_getContext(
+				srcFrame->width, srcFrame->height, (enum AVPixelFormat)srcFrame->format,
+				videoWidthNew, videoHeightNew, IMAGE_FORMAT,
+				SWS_BILINEAR, NULL, NULL, NULL
+			);
+
+			if (sws_ctx) {
+				// 1. Выделяем правильный буфер средствами FFmpeg (с выравниванием 32 байта)
+				if (av_image_alloc(align_data, align_linesize,
+					videoWidthNew, videoHeightNew, AV_PIX_FMT_BGRA, 32) >= 0) {
+
+					// 2. Конвертируем в этот выравненный буфер
+					ret = sws_scale(
+						sws_ctx,
+						(const uint8_t* const*)srcFrame->data,
+						srcFrame->linesize,
+						0,
+						srcFrame->height,
+						align_data,
+						align_linesize
+					);
+					if (!ret) {
+						retList.bufs[i].BufSize = 0;
+						av_freep(&align_data[0]);
+						sws_freeContext(sws_ctx);
+						continue;
+					}
+					// 3. Выделяем память под итоговый результат (плотный массив без отступов)
+					// av_image_get_buffer_size рассчитывает размер плотного буфера (align=1)
+					int size = av_image_get_buffer_size(AV_PIX_FMT_BGRA, videoWidthNew, videoHeightNew, 1);
+					retList.bufs[i].BufSize = (unsigned long)size;
+					retList.bufs[i].ImgBuf = malloc(retList.bufs[i].BufSize);
+
+					if (retList.bufs[i].ImgBuf) {
+						// 4. Копируем из выравненного буфера FFmpeg в наш плотный буфер
+						av_image_copy_to_buffer(
+							(uint8_t*)retList.bufs[i].ImgBuf,
+							size,
+							(const uint8_t* const*)align_data,
+							align_linesize,
+							AV_PIX_FMT_BGRA,
+							videoWidthNew,
+							videoHeightNew,
+							1 // Выравнивание 1 байт (плотная упаковка)
+						);
+					}
+					// Освобождаем временный буфер FFmpeg
+					av_freep(&align_data[0]);
+				}
+				sws_freeContext(sws_ctx);
+			}
+		}
+		curPos += step;
+	}
+exit:
+	if (utf8Filename) free(utf8Filename);
+	if (packet) av_packet_free(&packet);
+	if (srcFrame) av_frame_free(&srcFrame);
+	if (decoder_ctx) avcodec_free_context(&decoder_ctx);
+	if (fmt_ctx) avformat_close_input(&fmt_ctx);
+	return retList;
+}
+
 ScreenList GetImages(const char * filename, int LineCount, int AllCount, int ResizePercent) {
 
 	enum AVPixelFormat IMAGE_FORMAT = AV_PIX_FMT_BGRA;
@@ -803,8 +1035,7 @@ EXPORT void FreeImageList(ScreenList list)
 	
 	for (int i = 0; i < list.ImgCount; i++)
 	{
-		if (list.bufs[i].BufSize > 0)
-			free(list.bufs[i].ImgBuf);
+		FreeImageBuffer(list.bufs[i]);
 	}
 }
 

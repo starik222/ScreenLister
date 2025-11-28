@@ -108,7 +108,8 @@ int main(int argc, char **argv)
 			strcat(outputPath, ".bmp");
 
 			printf("Processing: %s\n", inputPath);
-			//ScreenList srcList = GetImages(inputPath, 5, 30, 100);
+			ScreenList srcList = GetImagesV2(inputPath, 5, 30, 100);
+			FreeImageList(srcList);
 			ImageBuf image = GetImageFromVideoFile(inputPath, 0);
 			if (image.ImgBuf == NULL || image.BufSize == 0) {
 				printf("Error processing file: %s\n", inputPath);
